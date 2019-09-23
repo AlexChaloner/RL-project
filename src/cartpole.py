@@ -1,5 +1,6 @@
 import gym
-import np
+import numpy as np
+
 
 env = gym.make('CartPole-v0')
 for i_episode in range(20):
@@ -23,7 +24,7 @@ class Agent:
         """ Initialization of agent at beginning of an episode """
         raise NotImplementedError()
 
-    def step(self, observation):
+    def step(self, observation, reward):
         """ At a new step of an episode, return an action """
         raise NotImplementedError()
 
@@ -34,22 +35,24 @@ class Agent:
 
 class OnPolicyFirstVisitMonteCarloAgent(Agent):
     """ From page 101 of Reinforcement Learning: An Introduction (2nd Edition) by Sutton and Barto """
-    def __init__(self, action_space, state_space, epsilon, time_decay):
+    def __init__(self, action_space, observation_space, epsilon, time_decay):
         super().__init__(action_space)
         self.epsilon = epsilon
         self.time_decay = time_decay
-        self._initialise_policy(state_space, epsilon)
-        self.policy = np.zeros((state_space.size, action_space.size))
-        self.returns = np.full((state_space.size, action_space.size), [])
-        self.Q = np.zeros((state_space.size, action_space.size))
+        self._initialise_policy(observation_space, epsilon)
+        self.policy = np.zeros((observation_space.size, action_space.size))
+        self.returns = np.full((observation_space.size, action_space.size), [])
+        self.Q = np.zeros((observation_space.size, action_space.size))
 
-    def _initialise_policy(self, state_space, epsilon):
-        for state in state_space:
+    def _initialise_policy(self, observation_space, epsilon):
+        if epsilon > 1 or epsilon < 0:
+            raise ValueError('Epsilon should be between 0 and 1')
+        for observation in observation_space:
             for action in self.action_space:
-                self.policy[state, action] = epsilon/self.action_space.size
+                self.policy[observation, action] = epsilon/self.action_space.size
             if epsilon < 1:
                 action = self.action_space.sample()
-                self.policy[state, action] += 1 - epsilon
+                self.policy[observation, action] += 1 - epsilon
 
     def _choose_action(self, observation):
         distribution = self.policy(observation)
@@ -76,6 +79,6 @@ class OnPolicyFirstVisitMonteCarloAgent(Agent):
                 optimal_action = np.argmax(self.Q[observation])
                 for action in self.action_space:
                     if action == optimal_action:
-                        self.policy(observation)[action] = 1 - self.epsilon + self.epsilon/len(self.action_space)
+                        self.policy[observation, action] = 1 - self.epsilon + self.epsilon/self.action_space.size
                     else:
-                        self.policy(observation)[action] = self.epsilon/len(self.action_space)
+                        self.policy[observation, action] = self.epsilon/self.action_space.size
