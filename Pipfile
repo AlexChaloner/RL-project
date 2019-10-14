@@ -10,6 +10,7 @@ pep8 = "*"
 [packages]
 gym = "*"
 numpy = "*"
+tensorflow = "*"
 
 [requires]
 python_version = "3.6"

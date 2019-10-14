@@ -26,7 +26,7 @@ class QLearningAgent(Agent):
     def _choose_action(self, observation):
         # Epsilon-greedy policy
         if np.random.rand() > self.epsilon:
-            action = np.argmax(self.policy[observation])
+            action = np.argmax(self.Q[observation])
         else:
             action = self.action_space.sample()
         return action
@@ -38,6 +38,6 @@ class QLearningAgent(Agent):
 
     def step(self, next_observation, reward):
         self.Q[self.observation, self.action] += self.step_size*(reward + self.time_decay*np.max(self.Q[next_observation]) - self.Q[self.observation, self.action])
-        self.action = self._choose_action(next_observation)
         self.observation = next_observation
+        self.action = self._choose_action(self.observation)
         return self.action
