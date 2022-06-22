@@ -10,10 +10,12 @@ from ..utils import get_neuron_number_from_space
 from functools import reduce
 
 
+
+@profile
 class ReplayBuffer:
     def __init__(self):
         self.replay = []
-        self._max_length = 10000
+        self._max_length = 1000
 
     def add(self, observation, action, reward, next_observation, done):
         step = (
@@ -26,6 +28,7 @@ class ReplayBuffer:
         self.replay.append(step)
         # Efficiently cut down list size
         if len(self.replay) > self._max_length * 1.1:
+            print('Cutting down Replay Buffer')
             self.replay = self.replay[-self._max_length:]
 
     def clear(self):
@@ -37,7 +40,7 @@ class ReplayBuffer:
         return random.sample(self.replay, batch_size)
 
 
-
+@profile
 class DQNAgent(Agent):
     def __init__(self, action_space, observation_space, epsilon, step_size, time_decay):
         super().__init__(action_space)
@@ -62,20 +65,20 @@ class DQNAgent(Agent):
             self.Q.add(Input(shape=input_shape))
         else:
             raise NotImplementedError('Input shape {} is not implemented'.format(input_shape))
+        self.Q.add(Dense(4, activation='relu'))
         output_shape = get_neuron_number_from_space(action_space)
         if isinstance(output_shape, tuple):
             output_number = reduce((lambda x, y: x * y), list(output_shape))
-            self.Q.add(Dense(output_number, activation='softmax'))
+            self.Q.add(Dense(output_number))
             self.Q.add(Reshape(output_shape))
         elif isinstance(output_shape, int):
-            self.Q.add(Dense(output_shape, activation='softmax'))
+            self.Q.add(Dense(output_shape))
         else:
             raise NotImplementedError('Output shape {} is not implemented'.format(output_shape))
         self.Q.compile(optimizer='adam', loss=Huber())
 
     def _choose_action(self, observation):
         # Epsilon-greedy DQN
-        print(observation)
         if np.random.rand() > self.epsilon:
             action_values = self.Q.predict(np.array([observation]))
             action = np.argmax(action_values)
@@ -90,7 +93,6 @@ class DQNAgent(Agent):
 
     def step(self, next_observation, reward, done):
         self.replay.add(self.observation, self.action, reward, next_observation, done)
-        self.train()
         self.observation = next_observation
         self.action = self._choose_action(self.observation)
         return self.action
@@ -99,7 +101,6 @@ class DQNAgent(Agent):
         self.train()
 
     def train(self):
-        # Use replay to train neural net
         transition_batch = self.replay.get_batch(batch_size=32)
         x_batch = []
         y_batch = []
@@ -107,11 +108,13 @@ class DQNAgent(Agent):
             if done:
                 aim_value = reward
             else:
-                max_Q = max(self.Q.predict(np.array([next_observation]))[0])
+                action_values = self.Q.predict(np.array([next_observation]))[0]
+                max_Q = max(action_values)
                 aim_value = reward + self.time_decay*max_Q
             current_Q = self.Q.predict(np.array([observation]))[0]
             x_batch.append(observation)
             y = current_Q
             y[action] = aim_value
+            # print('Aim:', y)
             y_batch.append(y)
         self.Q.train_on_batch(x=np.array(x_batch), y=np.array(y_batch))

@@ -11,6 +11,7 @@ pep8 = "*"
 gym = "*"
 numpy = "*"
 tensorflow = "*"
+guppy = "*"
 
 [requires]
 python_version = "3.6"
